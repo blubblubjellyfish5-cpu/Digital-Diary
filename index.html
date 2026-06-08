@@ -1390,7 +1390,7 @@
 // ─────────────────────────────────────────────
 // CONFIGURATION — Replace with your Supabase credentials
 // ─────────────────────────────────────────────
-const SUPABASE_URL     = "https://ssgegxdgnjcyejvvzsko.supabase.co/rest/v1/";
+const SUPABASE_URL     = "https://ssgegxdgnjcyejvvzsko.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzZ2VneGRnbmpjeWVqdnZ6c2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MzU1NjAsImV4cCI6MjA5NjUxMTU2MH0.WbmCVkWhdtedRO5eVGJOlwFUIYgtXsuOj6a1f0JdYNI";
 
 // ─────────────────────────────────────────────
@@ -2352,7 +2352,7 @@ async function exportData() {
   document.documentElement.setAttribute("data-theme", savedTheme);
 
   // Check if Supabase credentials are set
-  if (SUPABASE_URL === "https://ssgegxdgnjcyejvvzsko.supabase.co/rest/v1/" || SUPABASE_ANON_KEY === "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzZ2VneGRnbmpjeWVqdnZ6c2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MzU1NjAsImV4cCI6MjA5NjUxMTU2MH0.WbmCVkWhdtedRO5eVGJOlwFUIYgtXsuOj6a1f0JdYNI") {
+  if (SUPABASE_URL === "https://ssgegxdgnjcyejvvzsko.supabase.co" || SUPABASE_ANON_KEY === "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzZ2VneGRnbmpjeWVqdnZ6c2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MzU1NjAsImV4cCI6MjA5NjUxMTU2MH0.WbmCVkWhdtedRO5eVGJOlwFUIYgtXsuOj6a1f0JdYNI") {
     document.getElementById("auth-error").textContent =
       "⚠️ Supabase credentials not configured. Please update SUPABASE_URL and SUPABASE_ANON_KEY in the HTML file.";
     document.getElementById("auth-error").classList.add("show");
