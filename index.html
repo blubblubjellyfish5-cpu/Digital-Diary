@@ -1,0 +1,2502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Digital Diary</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  /* ===== CSS VARIABLES & RESET ===== */
+  :root {
+    --bg: #F8F6FF;
+    --bg2: #F2EDFF;
+    --bg3: #E8E2FF;
+    --card: #ffffff;
+    --accent1: #DCCFFF;
+    --accent2: #C9B9FF;
+    --accent3: #B8A7FF;
+    --accent4: #A78BFA;
+    --text: #3d3558;
+    --text2: #6b5f8a;
+    --text3: #9d90b8;
+    --border: #e8e2ff;
+    --shadow: rgba(167,139,250,0.15);
+    --shadow2: rgba(167,139,250,0.25);
+    --green: #86efac;
+    --yellow: #fde68a;
+    --red: #fca5a5;
+    --radius: 18px;
+    --radius-sm: 10px;
+    --transition: all 0.25s cubic-bezier(.4,0,.2,1);
+  }
+  [data-theme="dark"] {
+    --bg: #1a1625;
+    --bg2: #211d2e;
+    --bg3: #2a2440;
+    --card: #252033;
+    --accent1: #3d3558;
+    --accent2: #4a3f6b;
+    --accent3: #6b5f8a;
+    --text: #e8e2ff;
+    --text2: #c9b9ff;
+    --text3: #8b7faa;
+    --border: #3d3558;
+    --shadow: rgba(0,0,0,0.3);
+    --shadow2: rgba(0,0,0,0.5);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    transition: var(--transition);
+    overflow-x: hidden;
+  }
+  button { cursor: pointer; border: none; background: none; font-family: inherit; }
+  input, textarea, select {
+    font-family: inherit;
+    background: var(--bg2);
+    border: 1.5px solid var(--border);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    width: 100%;
+    transition: var(--transition);
+    outline: none;
+    font-size: 14px;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent3);
+    box-shadow: 0 0 0 3px rgba(167,139,250,0.15);
+  }
+  textarea { resize: vertical; min-height: 80px; }
+  img { max-width: 100%; }
+  a { text-decoration: none; color: inherit; }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--accent2); border-radius: 3px; }
+
+  /* ===== LOGIN PAGE ===== */
+  #login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #F8F6FF 0%, #E8E2FF 50%, #DCCFFF 100%);
+    padding: 20px;
+  }
+  .login-card {
+    background: white;
+    border-radius: 28px;
+    padding: 48px 40px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 20px 60px rgba(167,139,250,0.2), 0 4px 16px rgba(167,139,250,0.1);
+  }
+  .login-logo {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+  .login-logo .logo-icon {
+    width: 72px; height: 72px;
+    background: linear-gradient(135deg, #DCCFFF, #A78BFA);
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    margin-bottom: 16px;
+    box-shadow: 0 8px 24px rgba(167,139,250,0.3);
+  }
+  .login-logo h1 { font-size: 26px; font-weight: 700; color: var(--text); }
+  .login-logo p { color: var(--text3); font-size: 14px; margin-top: 4px; }
+  .login-form .field { margin-bottom: 16px; }
+  .login-form label { display: block; font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+  .login-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #C9B9FF, #A78BFA);
+    color: white;
+    border-radius: var(--radius-sm);
+    font-size: 15px;
+    font-weight: 600;
+    margin-top: 8px;
+    transition: var(--transition);
+    box-shadow: 0 4px 16px rgba(167,139,250,0.3);
+  }
+  .login-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(167,139,250,0.4); }
+  .login-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  .login-error {
+    background: #fff0f0;
+    border: 1px solid #fca5a5;
+    color: #dc2626;
+    padding: 10px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    margin-top: 12px;
+    display: none;
+  }
+
+  /* ===== APP LAYOUT ===== */
+  #app { display: none; min-height: 100vh; }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    width: 240px;
+    background: var(--card);
+    border-right: 1.5px solid var(--border);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    padding: 24px 16px;
+    transition: var(--transition);
+    box-shadow: 4px 0 20px var(--shadow);
+  }
+  .sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    margin-bottom: 28px;
+  }
+  .sidebar-logo .logo-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, #DCCFFF, #A78BFA);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .sidebar-logo h2 { font-size: 17px; font-weight: 700; color: var(--text); }
+  .nav-section { margin-bottom: 8px; }
+  .nav-label { font-size: 10px; font-weight: 700; color: var(--text3); letter-spacing: 1px; text-transform: uppercase; padding: 0 12px; margin-bottom: 6px; }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    border-radius: var(--radius-sm);
+    color: var(--text2);
+    font-size: 14px;
+    font-weight: 500;
+    transition: var(--transition);
+    cursor: pointer;
+    margin-bottom: 2px;
+  }
+  .nav-item:hover { background: var(--bg2); color: var(--text); }
+  .nav-item.active { background: linear-gradient(135deg, #E8E2FF, #DCCFFF); color: var(--accent4); font-weight: 600; }
+  .nav-item .nav-icon { font-size: 18px; width: 22px; text-align: center; }
+  .sidebar-user {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--bg2);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition);
+    border: 1.5px solid var(--border);
+  }
+  .sidebar-user:hover { background: var(--bg3); }
+  .user-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #DCCFFF, #A78BFA);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .sidebar-user-info { flex: 1; min-width: 0; }
+  .sidebar-user-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sidebar-user-status { font-size: 11px; color: var(--text3); }
+  .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #86efac; margin-right: 4px; }
+
+  /* ===== MOBILE HEADER ===== */
+  .mobile-header {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 60px;
+    background: var(--card);
+    border-bottom: 1.5px solid var(--border);
+    z-index: 200;
+    align-items: center;
+    padding: 0 16px;
+    gap: 14px;
+    box-shadow: 0 2px 12px var(--shadow);
+  }
+  .mobile-menu-btn { font-size: 22px; color: var(--text2); padding: 6px; }
+  .mobile-header-title { font-size: 17px; font-weight: 700; color: var(--text); flex: 1; }
+  .mobile-nav {
+    display: none;
+    position: fixed;
+    top: 60px; left: 0; right: 0; bottom: 0;
+    background: var(--card);
+    z-index: 150;
+    padding: 20px 16px;
+    overflow-y: auto;
+  }
+  .mobile-nav.open { display: block; }
+
+  /* ===== MAIN CONTENT ===== */
+  .main-content {
+    margin-left: 240px;
+    min-height: 100vh;
+    padding: 28px;
+    transition: var(--transition);
+  }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ===== CARDS ===== */
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    box-shadow: 0 4px 20px var(--shadow);
+    padding: 24px;
+    margin-bottom: 20px;
+    transition: var(--transition);
+  }
+  .card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title .icon { font-size: 18px; }
+
+  /* ===== BUTTONS ===== */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 600;
+    transition: var(--transition);
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #C9B9FF, #A78BFA);
+    color: white;
+    box-shadow: 0 4px 12px rgba(167,139,250,0.3);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(167,139,250,0.4); }
+  .btn-secondary {
+    background: var(--bg2);
+    color: var(--text2);
+    border: 1.5px solid var(--border);
+  }
+  .btn-secondary:hover { background: var(--bg3); }
+  .btn-danger { background: #fff0f0; color: #dc2626; border: 1.5px solid #fca5a5; }
+  .btn-danger:hover { background: #fca5a5; color: white; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-icon {
+    width: 34px; height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: var(--transition);
+    background: var(--bg2);
+    color: var(--text2);
+    border: 1.5px solid var(--border);
+  }
+  .btn-icon:hover { background: var(--bg3); color: var(--text); }
+
+  /* ===== TAGS / BADGES ===== */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-purple { background: var(--bg3); color: var(--accent4); }
+  .badge-green { background: #dcfce7; color: #16a34a; }
+  .badge-yellow { background: #fef9c3; color: #a16207; }
+  .badge-red { background: #fff0f0; color: #dc2626; }
+  .badge-blue { background: #eff6ff; color: #2563eb; }
+
+  /* ===== TOAST ===== */
+  #toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .toast {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 18px;
+    font-size: 13px;
+    color: var(--text);
+    box-shadow: 0 8px 24px var(--shadow2);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: toastIn 0.3s ease;
+    min-width: 240px;
+    max-width: 320px;
+  }
+  .toast.success .toast-icon { color: #16a34a; }
+  .toast.error .toast-icon { color: #dc2626; }
+  .toast.info .toast-icon { color: var(--accent4); }
+  @keyframes toastIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes toastOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(100%); opacity: 0; }
+  }
+
+  /* ===== STATUS INDICATOR ===== */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text2);
+  }
+  .status-indicator {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .status-synced { background: #86efac; box-shadow: 0 0 6px rgba(134,239,172,0.6); }
+  .status-reconnecting { background: #fde68a; box-shadow: 0 0 6px rgba(253,230,138,0.6); }
+  .status-offline { background: #fca5a5; box-shadow: 0 0 6px rgba(252,165,165,0.6); }
+
+  /* ===== HOME PAGE ===== */
+  .home-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .home-grid .full-width { grid-column: 1 / -1; }
+
+  /* Shared Note */
+  .shared-note-content {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--text);
+    white-space: pre-wrap;
+    min-height: 60px;
+  }
+  .shared-note-meta { font-size: 12px; color: var(--text3); margin-top: 12px; }
+  .note-edit-area { display: none; }
+  .note-edit-area textarea { min-height: 120px; }
+
+  /* Reminders */
+  .reminder-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+    background: var(--bg2);
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+    border: 1.5px solid var(--border);
+    transition: var(--transition);
+  }
+  .reminder-item.pinned { border-color: var(--accent3); background: linear-gradient(135deg, var(--bg2), #F2EDFF); }
+  .reminder-item:hover { transform: translateY(-1px); box-shadow: 0 4px 12px var(--shadow); }
+  .reminder-pin { font-size: 14px; cursor: pointer; opacity: 0.5; transition: var(--transition); }
+  .reminder-pin.active { opacity: 1; }
+  .reminder-info { flex: 1; min-width: 0; }
+  .reminder-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .reminder-desc { font-size: 12px; color: var(--text2); margin-top: 3px; }
+  .reminder-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+  .reminder-deadline {
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .reminder-deadline.overdue { color: #dc2626; }
+  .reminder-deadline.soon { color: #d97706; }
+  .reminder-deadline.ok { color: #16a34a; }
+  .reminder-actions { display: flex; gap: 6px; align-items: center; }
+
+  /* Last Active */
+  .last-active-list { display: flex; flex-direction: column; gap: 12px; }
+  .last-active-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .last-active-name { font-size: 14px; font-weight: 600; color: var(--text); }
+  .last-active-time { font-size: 12px; color: var(--text3); }
+
+  /* Activity Feed */
+  .activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-icon { font-size: 16px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: var(--bg2); border-radius: 8px; flex-shrink: 0; }
+  .activity-text { font-size: 13px; color: var(--text2); line-height: 1.5; }
+  .activity-text strong { color: var(--text); }
+  .activity-time { font-size: 11px; color: var(--text3); margin-left: auto; flex-shrink: 0; }
+
+  /* Refresh Bar */
+  .refresh-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .last-synced { font-size: 12px; color: var(--text3); }
+
+  /* ===== UPDATES PAGE ===== */
+  .updates-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .updates-controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .search-input {
+    flex: 1;
+    min-width: 200px;
+    padding: 10px 14px 10px 36px;
+    background: var(--card);
+    position: relative;
+  }
+  .search-wrap { position: relative; flex: 1; min-width: 200px; }
+  .search-wrap .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text3);
+    font-size: 14px;
+    pointer-events: none;
+  }
+
+  /* Update Card */
+  .update-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    box-shadow: 0 4px 16px var(--shadow);
+    padding: 20px;
+    margin-bottom: 16px;
+    transition: var(--transition);
+    position: relative;
+  }
+  .update-card.pinned { border-color: var(--accent3); }
+  .pinned-badge {
+    position: absolute;
+    top: -1px;
+    right: 16px;
+    background: linear-gradient(135deg, #C9B9FF, #A78BFA);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 0 0 8px 8px;
+    letter-spacing: 0.5px;
+  }
+  .update-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .update-meta { flex: 1; }
+  .update-author { font-size: 14px; font-weight: 700; color: var(--text); }
+  .update-time { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .update-tags { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .update-content { font-size: 14px; line-height: 1.7; color: var(--text); white-space: pre-wrap; margin-bottom: 14px; }
+  .update-footer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .seen-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text3);
+    margin-left: auto;
+  }
+  .seen-details { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  .action-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--bg2);
+    color: var(--text2);
+    border: 1.5px solid var(--border);
+    transition: var(--transition);
+  }
+  .action-btn:hover { background: var(--bg3); color: var(--text); }
+  .action-btn.fav-active { background: #fff0f6; color: #db2777; border-color: #fbcfe8; }
+  .action-btn.pin-active { background: var(--bg3); color: var(--accent4); border-color: var(--accent3); }
+
+  /* Replies */
+  .replies-section {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--border);
+  }
+  .reply-item {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    background: var(--bg2);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+  }
+  .reply-content { flex: 1; }
+  .reply-author { font-size: 12px; font-weight: 700; color: var(--text); }
+  .reply-time { font-size: 10px; color: var(--text3); }
+  .reply-text { font-size: 13px; color: var(--text2); margin-top: 3px; white-space: pre-wrap; }
+  .reply-form { display: flex; gap: 8px; margin-top: 10px; }
+  .reply-form input { flex: 1; padding: 8px 12px; font-size: 13px; }
+  .reply-form button { flex-shrink: 0; }
+
+  /* Create Update Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--card);
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    box-shadow: 0 24px 60px var(--shadow2);
+    padding: 28px;
+    width: 100%;
+    max-width: 540px;
+    max-height: 90vh;
+    overflow-y: auto;
+    transform: translateY(20px);
+    transition: transform 0.25s ease;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .modal-title { font-size: 17px; font-weight: 700; color: var(--text); }
+  .modal-close {
+    width: 32px; height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: var(--bg2);
+    color: var(--text2);
+    font-size: 18px;
+    transition: var(--transition);
+  }
+  .modal-close:hover { background: var(--bg3); }
+  .form-field { margin-bottom: 14px; }
+  .form-field label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .mood-grid { display: flex; gap: 8px; flex-wrap: wrap; }
+  .mood-btn {
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    background: var(--bg2);
+    border: 1.5px solid var(--border);
+    cursor: pointer;
+    transition: var(--transition);
+  }
+  .mood-btn.selected { background: var(--bg3); border-color: var(--accent3); }
+  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+  /* Filters */
+  .filter-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter-tab {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--bg2);
+    color: var(--text2);
+    border: 1.5px solid var(--border);
+    cursor: pointer;
+    transition: var(--transition);
+  }
+  .filter-tab.active { background: var(--bg3); color: var(--accent4); border-color: var(--accent3); }
+
+  /* ===== CHAT PAGE ===== */
+  .chat-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 140px);
+    background: var(--card);
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    box-shadow: 0 4px 20px var(--shadow);
+    overflow: hidden;
+  }
+  .chat-header {
+    padding: 16px 20px;
+    border-bottom: 1.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg2);
+  }
+  .chat-title { font-size: 15px; font-weight: 700; color: var(--text); }
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .chat-day-divider {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text3);
+    padding: 10px 0;
+    position: relative;
+  }
+  .chat-day-divider::before, .chat-day-divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 30%;
+    height: 1px;
+    background: var(--border);
+  }
+  .chat-day-divider::before { left: 10px; }
+  .chat-day-divider::after { right: 10px; }
+  .chat-msg {
+    display: flex;
+    gap: 10px;
+    padding: 6px 4px;
+    border-radius: var(--radius-sm);
+    transition: var(--transition);
+  }
+  .chat-msg:hover { background: var(--bg2); }
+  .chat-msg-content { flex: 1; }
+  .chat-msg-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+  .chat-msg-author { font-size: 13px; font-weight: 700; color: var(--text); }
+  .chat-msg-time { font-size: 10px; color: var(--text3); }
+  .chat-msg-text { font-size: 14px; color: var(--text2); line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+  .chat-input-area {
+    padding: 16px 20px;
+    border-top: 1.5px solid var(--border);
+    background: var(--bg2);
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  .chat-input-wrap { flex: 1; }
+  .chat-input {
+    width: 100%;
+    border-radius: 12px;
+    padding: 10px 14px;
+    resize: none;
+    min-height: 44px;
+    max-height: 120px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .chat-send-btn {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, #C9B9FF, #A78BFA);
+    color: white;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    transition: var(--transition);
+    box-shadow: 0 4px 12px rgba(167,139,250,0.3);
+  }
+  .chat-send-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(167,139,250,0.4); }
+  .emoji-picker-btn {
+    width: 36px; height: 36px;
+    background: var(--bg2);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-bottom: 4px;
+  }
+  .emoji-palette {
+    position: absolute;
+    bottom: 80px;
+    left: 20px;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    box-shadow: 0 8px 24px var(--shadow2);
+    display: none;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-width: 280px;
+    z-index: 50;
+  }
+  .emoji-palette.open { display: flex; }
+  .emoji-btn { font-size: 20px; padding: 4px; cursor: pointer; border-radius: 6px; transition: var(--transition); }
+  .emoji-btn:hover { background: var(--bg2); }
+
+  /* ===== FAVORITES PAGE ===== */
+  .favorites-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text3);
+  }
+  .favorites-empty .empty-icon { font-size: 48px; margin-bottom: 16px; }
+  .favorites-empty p { font-size: 15px; }
+
+  /* ===== SETTINGS PAGE ===== */
+  .settings-section { margin-bottom: 24px; }
+  .settings-section-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text3);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .settings-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .settings-item:last-child { border-bottom: none; }
+  .settings-item-info h4 { font-size: 14px; font-weight: 600; color: var(--text); }
+  .settings-item-info p { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .theme-options { display: flex; gap: 8px; }
+  .theme-btn {
+    padding: 7px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--bg2);
+    color: var(--text2);
+    border: 1.5px solid var(--border);
+    cursor: pointer;
+    transition: var(--transition);
+  }
+  .theme-btn.active { background: var(--bg3); color: var(--accent4); border-color: var(--accent3); }
+
+  /* Profile Picture Upload */
+  .avatar-upload {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: var(--bg2);
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border);
+  }
+  .avatar-large {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #DCCFFF, #A78BFA);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 700;
+    color: white;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px var(--shadow);
+  }
+  .avatar-large img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* About */
+  .about-card {
+    text-align: center;
+    padding: 32px;
+  }
+  .about-logo { font-size: 48px; margin-bottom: 12px; }
+  .about-card h3 { font-size: 20px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .about-card p { font-size: 13px; color: var(--text3); line-height: 1.7; }
+
+  /* ===== GLOBAL SEARCH ===== */
+  .global-search-wrap {
+    position: relative;
+    margin-bottom: 20px;
+  }
+  .global-search-results {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 24px var(--shadow2);
+    padding: 16px;
+    display: none;
+  }
+  .global-search-results.open { display: block; }
+  .search-group-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text3);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 10px 0 6px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .search-result-item {
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition);
+    margin-bottom: 4px;
+  }
+  .search-result-item:hover { background: var(--bg2); }
+  .search-result-item .result-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .search-result-item .result-meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  /* ===== LOADING ===== */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 9000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+  }
+  .loading-spinner {
+    width: 48px; height: 48px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent4);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  .loading-text { font-size: 14px; color: var(--text3); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .skeleton {
+    background: linear-gradient(90deg, var(--bg2) 25%, var(--bg3) 50%, var(--bg2) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s infinite;
+    border-radius: 8px;
+  }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+
+  /* ===== EMPTY STATE ===== */
+  .empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text3);
+  }
+  .empty-state .empty-icon { font-size: 44px; margin-bottom: 12px; }
+  .empty-state h3 { font-size: 16px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+  .empty-state p { font-size: 13px; line-height: 1.6; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.mobile-open { transform: translateX(0); }
+    .mobile-header { display: flex; }
+    .main-content { margin-left: 0; padding: 80px 16px 20px; }
+    .home-grid { grid-template-columns: 1fr; }
+    .home-grid .full-width { grid-column: 1; }
+    .updates-header { flex-direction: column; align-items: flex-start; }
+    .chat-container { height: calc(100vh - 120px); }
+    .modal { padding: 20px; }
+    .emoji-palette { left: 10px; right: 10px; max-width: none; }
+    #toast-container { bottom: 12px; right: 12px; left: 12px; }
+    .toast { min-width: auto; max-width: none; }
+  }
+  @media (max-width: 480px) {
+    .update-footer { gap: 6px; }
+    .action-btn { padding: 5px 9px; font-size: 11px; }
+    .home-grid { gap: 14px; }
+  }
+
+  /* ===== UTILITIES ===== */
+  .flex { display: flex; }
+  .items-center { align-items: center; }
+  .justify-between { justify-content: space-between; }
+  .gap-8 { gap: 8px; }
+  .gap-12 { gap: 12px; }
+  .mt-8 { margin-top: 8px; }
+  .mt-12 { margin-top: 12px; }
+  .mt-16 { margin-top: 16px; }
+  .mb-8 { margin-bottom: 8px; }
+  .text-sm { font-size: 13px; }
+  .text-xs { font-size: 11px; }
+  .text-muted { color: var(--text3); }
+  .font-bold { font-weight: 700; }
+  .page-title { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 20px; }
+  .divider { border: none; border-top: 1.5px solid var(--border); margin: 16px 0; }
+  .hidden { display: none !important; }
+
+  /* Smooth page transitions */
+  .page { animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Overlay for mobile sidebar */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 99;
+  }
+  .sidebar-overlay.open { display: block; }
+
+  /* Locked edit indicator */
+  .locked-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--text3);
+    background: var(--bg2);
+    padding: 3px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== LOADING OVERLAY ===== -->
+<div class="loading-overlay" id="loading-overlay">
+  <div style="font-size:42px">📔</div>
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Opening your diary...</div>
+</div>
+
+<!-- ===== LOGIN PAGE ===== -->
+<div id="login-page" style="display:none">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-icon">📔</div>
+      <h1>Digital Diary</h1>
+      <p>Your shared private notebook</p>
+    </div>
+    <form class="login-form" id="login-form" onsubmit="handleLogin(event)">
+      <div class="field">
+        <label>Username</label>
+        <input type="text" id="login-username" placeholder="Enter your username" autocomplete="username" required />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="Enter your password" autocomplete="current-password" required />
+      </div>
+      <button type="submit" class="login-btn" id="login-btn">Sign In</button>
+      <div class="login-error" id="login-error"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="app">
+  <!-- Sidebar Overlay (mobile) -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">📔</div>
+      <h2>Digital Diary</h2>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Navigation</div>
+      <div class="nav-item active" onclick="navigate('home')" data-page="home">
+        <span class="nav-icon">🏠</span> Home
+      </div>
+      <div class="nav-item" onclick="navigate('updates')" data-page="updates">
+        <span class="nav-icon">📝</span> Updates
+      </div>
+      <div class="nav-item" onclick="navigate('chat')" data-page="chat">
+        <span class="nav-icon">💬</span> Chat
+      </div>
+      <div class="nav-item" onclick="navigate('favorites')" data-page="favorites">
+        <span class="nav-icon">⭐</span> Favorites
+      </div>
+      <div class="nav-item" onclick="navigate('settings')" data-page="settings">
+        <span class="nav-icon">⚙️</span> Settings
+      </div>
+    </div>
+
+    <div class="sidebar-user" onclick="navigate('settings')">
+      <div class="user-avatar" id="sidebar-avatar">?</div>
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name" id="sidebar-username">Loading...</div>
+        <div class="sidebar-user-status"><span class="status-dot"></span>Online</div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mobile Header -->
+  <div class="mobile-header">
+    <button class="mobile-menu-btn" onclick="openMobileSidebar()">☰</button>
+    <span class="mobile-header-title" id="mobile-page-title">Home</span>
+    <div class="user-avatar" id="mobile-avatar" style="width:32px;height:32px;font-size:13px" onclick="navigate('settings')">?</div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+
+    <!-- ===== HOME PAGE ===== -->
+    <div class="page active" id="page-home">
+      <div class="flex items-center justify-between mb-8" style="margin-bottom:20px">
+        <h1 class="page-title" style="margin-bottom:0">Good day! 🌸</h1>
+        <div class="status-bar">
+          <span class="status-indicator status-synced" id="status-dot"></span>
+          <span id="status-text">Synced</span>
+        </div>
+      </div>
+
+      <div class="home-grid">
+        <!-- Shared Note -->
+        <div class="card full-width">
+          <div class="card-title">
+            <span class="icon">📋</span> Shared Note
+            <div style="margin-left:auto;display:flex;gap:8px">
+              <button class="btn btn-secondary btn-sm" onclick="startEditNote()" id="edit-note-btn">✏️ Edit</button>
+            </div>
+          </div>
+          <div id="note-display">
+            <div class="shared-note-content" id="note-content">Loading...</div>
+            <div class="shared-note-meta" id="note-meta"></div>
+          </div>
+          <div class="note-edit-area" id="note-edit-area">
+            <textarea id="note-textarea" placeholder="Write your shared note here..."></textarea>
+            <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+              <button class="btn btn-secondary btn-sm" onclick="cancelEditNote()">Cancel</button>
+              <button class="btn btn-primary btn-sm" onclick="saveNote()">💾 Save</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reminders -->
+        <div class="card">
+          <div class="card-title">
+            <span class="icon">⏰</span> Reminders
+            <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="openReminderModal()">+ Add</button>
+          </div>
+          <div id="reminders-list">
+            <div class="skeleton" style="height:70px;margin-bottom:10px"></div>
+            <div class="skeleton" style="height:70px"></div>
+          </div>
+        </div>
+
+        <!-- Last Active -->
+        <div class="card">
+          <div class="card-title"><span class="icon">👥</span> Last Active</div>
+          <div class="last-active-list" id="last-active-list">
+            <div class="skeleton" style="height:44px;margin-bottom:8px"></div>
+            <div class="skeleton" style="height:44px"></div>
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card full-width">
+          <div class="card-title"><span class="icon">🔔</span> Recent Activity</div>
+          <div id="activity-feed">
+            <div class="skeleton" style="height:44px;margin-bottom:8px"></div>
+            <div class="skeleton" style="height:44px;margin-bottom:8px"></div>
+            <div class="skeleton" style="height:44px"></div>
+          </div>
+        </div>
+
+        <!-- Refresh + Status -->
+        <div class="card full-width">
+          <div class="refresh-bar">
+            <div>
+              <div class="status-bar" style="margin-bottom:4px">
+                <span class="status-indicator status-synced" id="status-dot2"></span>
+                <span id="status-text2" style="font-weight:600">🟢 Synced</span>
+              </div>
+              <div class="last-synced" id="last-synced-time">Last synced: never</div>
+            </div>
+            <button class="btn btn-primary" onclick="refreshAll()">🔄 Refresh All</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== UPDATES PAGE ===== -->
+    <div class="page" id="page-updates">
+      <div class="updates-header">
+        <h1 class="page-title" style="margin-bottom:0">📝 Updates</h1>
+        <button class="btn btn-primary" onclick="openCreateUpdate()">+ New Update</button>
+      </div>
+
+      <!-- Search & Filters -->
+      <div class="updates-controls">
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" id="updates-search" placeholder="Search updates..." oninput="filterUpdates()" />
+        </div>
+        <select id="cat-filter" style="width:auto;min-width:130px" onchange="filterUpdates()">
+          <option value="">All Categories</option>
+          <option value="General">General</option>
+          <option value="Daily Life">Daily Life</option>
+          <option value="Project">Project</option>
+          <option value="Important">Important</option>
+        </select>
+      </div>
+
+      <div class="filter-tabs mb-8" style="margin-bottom:16px">
+        <button class="filter-tab active" onclick="setTimeFilter('all', this)">All Time</button>
+        <button class="filter-tab" onclick="setTimeFilter('today', this)">Today</button>
+        <button class="filter-tab" onclick="setTimeFilter('7d', this)">Last 7 Days</button>
+        <button class="filter-tab" onclick="setTimeFilter('30d', this)">Last 30 Days</button>
+      </div>
+
+      <div id="updates-list">
+        <div class="skeleton" style="height:160px;border-radius:18px;margin-bottom:16px"></div>
+        <div class="skeleton" style="height:160px;border-radius:18px;margin-bottom:16px"></div>
+      </div>
+    </div>
+
+    <!-- ===== CHAT PAGE ===== -->
+    <div class="page" id="page-chat">
+      <h1 class="page-title">💬 Chat</h1>
+      <div class="chat-container" style="position:relative">
+        <div class="chat-header">
+          <div>
+            <div class="chat-title">Shared Space</div>
+            <div style="font-size:11px;color:var(--text3)">Your private chat</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div class="search-wrap" style="min-width:180px">
+              <span class="search-icon">🔍</span>
+              <input type="text" class="search-input" id="chat-search" placeholder="Search messages..." oninput="filterChat()" style="padding-left:32px;background:var(--bg);font-size:12px;padding-top:7px;padding-bottom:7px" />
+            </div>
+          </div>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="empty-state">
+            <div class="empty-icon">💬</div>
+            <h3>No messages yet</h3>
+            <p>Start the conversation!</p>
+          </div>
+        </div>
+        <div class="emoji-palette" id="emoji-palette"></div>
+        <div class="chat-input-area">
+          <button class="emoji-picker-btn" onclick="toggleEmojiPicker()" title="Emoji">😊</button>
+          <div class="chat-input-wrap">
+            <textarea class="chat-input" id="chat-input" placeholder="Write something..." rows="1" onkeydown="handleChatKey(event)" oninput="autoResizeChatInput(this)"></textarea>
+          </div>
+          <button class="chat-send-btn" onclick="sendMessage()" title="Send">➤</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== FAVORITES PAGE ===== -->
+    <div class="page" id="page-favorites">
+      <h1 class="page-title">⭐ Favorites</h1>
+      <div id="favorites-list">
+        <div class="skeleton" style="height:160px;border-radius:18px;margin-bottom:16px"></div>
+        <div class="skeleton" style="height:160px;border-radius:18px"></div>
+      </div>
+    </div>
+
+    <!-- ===== SETTINGS PAGE ===== -->
+    <div class="page" id="page-settings">
+      <h1 class="page-title">⚙️ Settings</h1>
+
+      <div class="card">
+        <div class="settings-section">
+          <div class="settings-section-title">Appearance</div>
+          <div class="settings-item">
+            <div class="settings-item-info">
+              <h4>Theme</h4>
+              <p>Choose your preferred color scheme</p>
+            </div>
+            <div class="theme-options">
+              <button class="theme-btn active" onclick="setTheme('light', this)">☀️ Light</button>
+              <button class="theme-btn" onclick="setTheme('dark', this)">🌙 Dark</button>
+              <button class="theme-btn" onclick="setTheme('auto', this)">🌓 Auto</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Profile</div>
+          <div class="settings-item" style="flex-direction:column;align-items:flex-start;gap:14px">
+            <div class="settings-item-info">
+              <h4>Profile Picture</h4>
+              <p>Upload or replace your profile picture (JPG, PNG, WEBP · max 2MB)</p>
+            </div>
+            <div class="avatar-upload">
+              <div class="avatar-large" id="settings-avatar">?</div>
+              <div>
+                <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px" id="settings-username-display">Username</div>
+                <input type="file" id="avatar-file-input" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="handleAvatarUpload(event)" />
+                <button class="btn btn-primary btn-sm" onclick="document.getElementById('avatar-file-input').click()">📷 Upload Photo</button>
+                <div style="font-size:11px;color:var(--text3);margin-top:6px" id="upload-status"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Data</div>
+          <div class="settings-item">
+            <div class="settings-item-info">
+              <h4>Export Data</h4>
+              <p>Download all diary data as JSON</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="exportData()">📥 Export</button>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Account</div>
+          <div class="settings-item">
+            <div class="settings-item-info">
+              <h4>Sign Out</h4>
+              <p>Log out of this session</p>
+            </div>
+            <button class="btn btn-danger btn-sm" onclick="logout()">🚪 Logout</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- About -->
+      <div class="card">
+        <div class="about-card">
+          <div class="about-logo">📔</div>
+          <h3>Digital Diary</h3>
+          <p>A shared private notebook between two friends.<br />Write freely. Share openly. Remember together.</p>
+          <div style="margin-top:16px;font-size:12px;color:var(--text3)">Version 1.0.0 · Built with ♡</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end main-content -->
+</div><!-- end app -->
+
+<!-- ===== TOAST CONTAINER ===== -->
+<div id="toast-container"></div>
+
+<!-- ===== MODALS ===== -->
+
+<!-- Create/Edit Update Modal -->
+<div class="modal-overlay" id="update-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="update-modal-title">New Update</div>
+      <button class="modal-close" onclick="closeUpdateModal()">✕</button>
+    </div>
+    <div class="form-field">
+      <label>Category</label>
+      <select id="update-category">
+        <option value="General">General</option>
+        <option value="Daily Life">Daily Life</option>
+        <option value="Project">Project</option>
+        <option value="Important">Important</option>
+      </select>
+    </div>
+    <div class="form-field">
+      <label>Mood</label>
+      <div class="mood-grid">
+        <button type="button" class="mood-btn selected" data-mood="😊 Good" onclick="selectMood(this)">😊 Good</button>
+        <button type="button" class="mood-btn" data-mood="😐 Normal" onclick="selectMood(this)">😐 Normal</button>
+        <button type="button" class="mood-btn" data-mood="😔 Bad" onclick="selectMood(this)">😔 Bad</button>
+        <button type="button" class="mood-btn" data-mood="😴 Tired" onclick="selectMood(this)">😴 Tired</button>
+        <button type="button" class="mood-btn" data-mood="🔥 Excited" onclick="selectMood(this)">🔥 Excited</button>
+      </div>
+    </div>
+    <div class="form-field">
+      <label>Content</label>
+      <textarea id="update-content" placeholder="Write your diary entry here..." style="min-height:140px"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeUpdateModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveUpdate()" id="save-update-btn">📝 Post</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reminder Modal -->
+<div class="modal-overlay" id="reminder-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="reminder-modal-title">New Reminder</div>
+      <button class="modal-close" onclick="closeReminderModal()">✕</button>
+    </div>
+    <div class="form-field">
+      <label>Title</label>
+      <input type="text" id="reminder-title" placeholder="Reminder title..." />
+    </div>
+    <div class="form-field">
+      <label>Description</label>
+      <textarea id="reminder-desc" placeholder="Optional description..." style="min-height:80px"></textarea>
+    </div>
+    <div class="form-field">
+      <label>Deadline (optional)</label>
+      <input type="datetime-local" id="reminder-deadline" />
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeReminderModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveReminder()" id="save-reminder-btn">⏰ Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Seen By Modal -->
+<div class="modal-overlay" id="seen-modal">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header">
+      <div class="modal-title">👁 Seen By</div>
+      <button class="modal-close" onclick="closeModal('seen-modal')">✕</button>
+    </div>
+    <div id="seen-modal-content" style="font-size:14px;color:var(--text2)"></div>
+  </div>
+</div>
+
+<script>
+// ===== SUPABASE INIT =====
+const SUPABASE_URL = "https://ssgegxdgnjcyejvvzsko.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzZ2VneGRnbmpjeWVqdnpza28iLCJyb2xlIjoiYW5vbiIsImlhdCI6MTc0ODcxMjQzMiwiZXhwIjoyMDY0Mjg4NDMyfQ.RXxp9LoMc8KBBjGJMi5FvSJimcS7MXNNaVbAVvLPxnE";
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ===== GLOBAL STATE =====
+let currentUser = null;
+let profilePictures = {}; // username -> url
+let allUpdates = [];
+let allReplies = {};
+let allFavorites = [];
+let allReminders = [];
+let chatMessages = [];
+let sharedNote = null;
+let currentTimeFilter = 'all';
+let editingUpdateId = null;
+let editingReminderId = null;
+let selectedMood = '😊 Good';
+let realtimeChannels = [];
+let lastSyncTime = null;
+let currentTheme = localStorage.getItem('dd_theme') || 'light';
+
+// ===== SECURITY: HTML ESCAPE =====
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ===== TIME UTILS =====
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diff = Math.floor((now - d) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+  if (diff < 604800) return `${Math.floor(diff/86400)}d ago`;
+  return d.toLocaleDateString();
+}
+function formatTime(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'});
+}
+function formatDateTime(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString([], {month:'short', day:'numeric'}) + ' · ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+function isToday(dateStr) {
+  const d = new Date(dateStr);
+  const n = new Date();
+  return d.getDate()===n.getDate() && d.getMonth()===n.getMonth() && d.getFullYear()===n.getFullYear();
+}
+function isSameDay(a, b) {
+  const da = new Date(a), db = new Date(b);
+  return da.getDate()===db.getDate() && da.getMonth()===db.getMonth() && da.getFullYear()===db.getFullYear();
+}
+function withinDays(dateStr, days) {
+  const d = new Date(dateStr);
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  return d >= cutoff;
+}
+function deadlineStatus(deadline) {
+  if (!deadline) return null;
+  const d = new Date(deadline);
+  const now = new Date();
+  const diff = d - now;
+  if (diff < 0) return 'overdue';
+  if (diff < 86400000) return 'soon';
+  return 'ok';
+}
+
+// ===== TOAST =====
+function showToast(msg, type='info', duration=3000) {
+  const container = document.getElementById('toast-container');
+  const icons = {success:'✅', error:'❌', info:'💜'};
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.innerHTML = `<span class="toast-icon">${icons[type]||'💜'}</span><span>${escHtml(msg)}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.animation = 'toastOut 0.3s ease forwards';
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+// ===== THEME =====
+function applyTheme(theme) {
+  currentTheme = theme;
+  localStorage.setItem('dd_theme', theme);
+  if (theme === 'auto') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : '');
+  } else {
+    document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : '');
+  }
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.toLowerCase().includes(theme));
+  });
+}
+function setTheme(theme, btn) {
+  applyTheme(theme);
+}
+
+// ===== AVATAR UTILS =====
+function getAvatarHTML(username, size=36, imgUrl=null) {
+  const url = imgUrl || profilePictures[username];
+  const initials = username ? username.charAt(0).toUpperCase() : '?';
+  if (url) {
+    return `<div class="user-avatar" style="width:${size}px;height:${size}px;font-size:${Math.floor(size*0.4)}px"><img src="${escHtml(url)}" alt="${escHtml(username)}" onerror="this.parentElement.innerHTML='${initials}'" /></div>`;
+  }
+  return `<div class="user-avatar" style="width:${size}px;height:${size}px;font-size:${Math.floor(size*0.4)}px">${initials}</div>`;
+}
+
+async function loadProfilePictures() {
+  // List files in profile-pictures bucket
+  const { data, error } = await db.storage.from('profile-pictures').list('');
+  if (error || !data) return;
+  for (const file of data) {
+    const username = file.name.split('.')[0];
+    const { data: urlData } = db.storage.from('profile-pictures').getPublicUrl(file.name);
+    if (urlData?.publicUrl) {
+      profilePictures[username] = urlData.publicUrl + '?t=' + Date.now();
+    }
+  }
+  updateAllAvatars();
+}
+
+function updateAllAvatars() {
+  if (!currentUser) return;
+  const url = profilePictures[currentUser.username];
+  // Sidebar
+  const sa = document.getElementById('sidebar-avatar');
+  if (sa) sa.innerHTML = url ? `<img src="${escHtml(url)}" alt="${escHtml(currentUser.username)}" />` : currentUser.username.charAt(0).toUpperCase();
+  // Mobile
+  const ma = document.getElementById('mobile-avatar');
+  if (ma) ma.innerHTML = url ? `<img src="${escHtml(url)}" alt="${escHtml(currentUser.username)}" />` : currentUser.username.charAt(0).toUpperCase();
+  // Settings
+  const settingsA = document.getElementById('settings-avatar');
+  if (settingsA) settingsA.innerHTML = url ? `<img src="${escHtml(url)}" alt="${escHtml(currentUser.username)}" />` : currentUser.username.charAt(0).toUpperCase();
+}
+
+// ===== LOGIN =====
+async function handleLogin(e) {
+  e.preventDefault();
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn = document.getElementById('login-btn');
+  const errorEl = document.getElementById('login-error');
+  if (!username || !password) { showLoginError('Please enter username and password.'); return; }
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+  errorEl.style.display = 'none';
+  try {
+    const { data, error } = await db.from('users').select('*').eq('username', username).single();
+    if (error || !data) { showLoginError('User not found.'); return; }
+    if (data.password !== password) { showLoginError('Incorrect password.'); return; }
+    // Success
+    currentUser = { id: data.id, username: data.username };
+    sessionStorage.setItem('dd_user', JSON.stringify(currentUser));
+    await updateLastActive();
+    startApp();
+  } catch(err) {
+    showLoginError('Connection error. Please try again.');
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+}
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ===== SESSION =====
+function checkSession() {
+  const stored = sessionStorage.getItem('dd_user');
+  if (stored) {
+    try { currentUser = JSON.parse(stored); return true; } catch { return false; }
+  }
+  return false;
+}
+
+// ===== INIT =====
+window.addEventListener('load', async () => {
+  applyTheme(currentTheme);
+  const hasSession = checkSession();
+  document.getElementById('loading-overlay').style.display = 'flex';
+  await new Promise(r => setTimeout(r, 800));
+  document.getElementById('loading-overlay').style.display = 'none';
+  if (hasSession) {
+    startApp();
+  } else {
+    document.getElementById('login-page').style.display = 'flex';
+  }
+});
+
+async function startApp() {
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('sidebar-username').textContent = currentUser.username;
+  const settingsUsernameDisplay = document.getElementById('settings-username-display');
+  if (settingsUsernameDisplay) settingsUsernameDisplay.textContent = currentUser.username;
+  // Load cached data immediately
+  loadFromCache();
+  // Load profile pictures
+  await loadProfilePictures();
+  updateAllAvatars();
+  // Load all data
+  await Promise.all([
+    loadSharedNote(),
+    loadReminders(),
+    loadUpdates(),
+    loadChatMessages(),
+    loadFavorites(),
+  ]);
+  loadLastActive();
+  buildActivityFeed();
+  setupRealtime();
+  updateLastSynced();
+}
+
+// ===== CACHE =====
+function loadFromCache() {
+  try {
+    const cached = localStorage.getItem('dd_cache');
+    if (!cached) return;
+    const data = JSON.parse(cached);
+    if (data.note) renderSharedNote(data.note);
+    if (data.reminders) { allReminders = data.reminders; renderReminders(); }
+    if (data.updates) { allUpdates = data.updates; renderUpdates(); }
+    if (data.chat) { chatMessages = data.chat; renderChatMessages(); }
+  } catch(e) {}
+}
+function saveToCache() {
+  try {
+    localStorage.setItem('dd_cache', JSON.stringify({
+      note: sharedNote,
+      reminders: allReminders,
+      updates: allUpdates,
+      chat: chatMessages
+    }));
+  } catch(e) {}
+}
+
+// ===== LAST ACTIVE =====
+async function updateLastActive() {
+  if (!currentUser) return;
+  await db.from('users').update({ last_active: new Date().toISOString() }).eq('username', currentUser.username);
+}
+async function loadLastActive() {
+  const { data } = await db.from('users').select('username, last_active');
+  if (!data) return;
+  const list = document.getElementById('last-active-list');
+  list.innerHTML = data.map(u => {
+    const avatarHtml = getAvatarHTML(u.username, 40);
+    return `
+      <div class="last-active-item">
+        ${avatarHtml}
+        <div>
+          <div class="last-active-name">${escHtml(u.username)}</div>
+          <div class="last-active-time">${u.last_active ? 'Last active ' + timeAgo(u.last_active) : 'Never'}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ===== NAVIGATION =====
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page)?.classList.add('active');
+  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  const titles = { home:'Home', updates:'Updates', chat:'Chat', favorites:'Favorites', settings:'Settings' };
+  document.getElementById('mobile-page-title').textContent = titles[page] || page;
+  if (page === 'chat') { scrollChatToBottom(); markChatSeen(); }
+  if (page === 'updates') { markUpdatesSeen(); }
+  if (page === 'home') { loadLastActive(); buildActivityFeed(); }
+  if (page === 'favorites') { renderFavorites(); }
+  closeMobileSidebar();
+}
+function openMobileSidebar() {
+  document.getElementById('sidebar').classList.add('mobile-open');
+  document.getElementById('sidebar-overlay').classList.add('open');
+}
+function closeMobileSidebar() {
+  document.getElementById('sidebar').classList.remove('mobile-open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+}
+
+// ===== SHARED NOTE =====
+async function loadSharedNote() {
+  const { data, error } = await db.from('shared_note').select('*').order('updated_at', {ascending:false}).limit(1).single();
+  if (data) { sharedNote = data; renderSharedNote(data); saveToCache(); }
+}
+function renderSharedNote(note) {
+  if (!note) { document.getElementById('note-content').textContent = 'No note yet. Click Edit to add one!'; return; }
+  document.getElementById('note-content').textContent = note.content || 'No note yet.';
+  document.getElementById('note-meta').textContent = note.edited_by ? `Last edited by ${note.edited_by} · ${timeAgo(note.updated_at)}` : '';
+}
+function startEditNote() {
+  const ta = document.getElementById('note-textarea');
+  ta.value = sharedNote?.content || '';
+  document.getElementById('note-display').style.display = 'none';
+  document.getElementById('note-edit-area').style.display = 'block';
+  document.getElementById('edit-note-btn').style.display = 'none';
+  ta.focus();
+}
+function cancelEditNote() {
+  document.getElementById('note-display').style.display = 'block';
+  document.getElementById('note-edit-area').style.display = 'none';
+  document.getElementById('edit-note-btn').style.display = '';
+}
+async function saveNote() {
+  const content = document.getElementById('note-textarea').value.trim();
+  if (!content) { showToast('Note cannot be empty', 'error'); return; }
+  const now = new Date().toISOString();
+  let result;
+  if (sharedNote?.id) {
+    result = await db.from('shared_note').update({ content, edited_by: currentUser.username, updated_at: now }).eq('id', sharedNote.id).select().single();
+  } else {
+    result = await db.from('shared_note').insert({ content, edited_by: currentUser.username, updated_at: now }).select().single();
+  }
+  if (result.error) { showToast('Failed to save note', 'error'); return; }
+  sharedNote = result.data;
+  renderSharedNote(sharedNote);
+  cancelEditNote();
+  updateLastActive();
+  saveToCache();
+  showToast('Note saved!', 'success');
+}
+
+// ===== REMINDERS =====
+async function loadReminders() {
+  const { data } = await db.from('reminders').select('*').order('pinned', {ascending:false}).order('created_at', {ascending:false});
+  if (data) { allReminders = data; renderReminders(); saveToCache(); }
+}
+function renderReminders() {
+  const list = document.getElementById('reminders-list');
+  if (!list) return;
+  if (!allReminders.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">⏰</div><h3>No reminders</h3><p>Add your first reminder!</p></div>`;
+    return;
+  }
+  const sorted = [...allReminders].sort((a,b) => (b.pinned?1:0)-(a.pinned?1:0) || new Date(a.created_at)-new Date(b.created_at));
+  list.innerHTML = sorted.map(r => {
+    const ds = deadlineStatus(r.deadline);
+    const deadlineHTML = r.deadline ? `<span class="reminder-deadline ${ds}">${ds==='overdue'?'🔴':ds==='soon'?'🟡':'🟢'} ${formatDateTime(r.deadline)}</span>` : '';
+    const canEdit = r.author === currentUser.username;
+    return `
+      <div class="reminder-item ${r.pinned?'pinned':''}" id="rem-${r.id}">
+        <span class="reminder-pin ${r.pinned?'active':''}" onclick="toggleReminderPin('${r.id}', ${r.pinned})" title="${r.pinned?'Unpin':'Pin'}">📌</span>
+        <div class="reminder-info">
+          <div class="reminder-title">${escHtml(r.title)}</div>
+          ${r.description ? `<div class="reminder-desc">${escHtml(r.description)}</div>` : ''}
+          <div class="reminder-meta">
+            ${deadlineHTML}
+            <span class="badge badge-purple" style="font-size:10px">${escHtml(r.author)}</span>
+            <span style="font-size:10px;color:var(--text3)">${timeAgo(r.created_at)}</span>
+          </div>
+        </div>
+        ${canEdit ? `
+        <div class="reminder-actions">
+          <button class="btn-icon" onclick="editReminder('${r.id}')" title="Edit" style="font-size:13px">✏️</button>
+          <button class="btn-icon" onclick="deleteReminder('${r.id}')" title="Delete" style="font-size:13px;color:#dc2626;background:#fff0f0;border-color:#fca5a5">🗑️</button>
+        </div>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function openReminderModal(id=null) {
+  editingReminderId = id;
+  const modal = document.getElementById('reminder-modal');
+  const title = document.getElementById('reminder-modal-title');
+  if (id) {
+    const r = allReminders.find(x => x.id === id);
+    if (!r) return;
+    title.textContent = 'Edit Reminder';
+    document.getElementById('reminder-title').value = r.title;
+    document.getElementById('reminder-desc').value = r.description || '';
+    document.getElementById('reminder-deadline').value = r.deadline ? new Date(r.deadline).toISOString().slice(0,16) : '';
+  } else {
+    title.textContent = 'New Reminder';
+    document.getElementById('reminder-title').value = '';
+    document.getElementById('reminder-desc').value = '';
+    document.getElementById('reminder-deadline').value = '';
+  }
+  modal.classList.add('open');
+}
+function closeReminderModal() { document.getElementById('reminder-modal').classList.remove('open'); editingReminderId = null; }
+async function saveReminder() {
+  const title = document.getElementById('reminder-title').value.trim();
+  const desc = document.getElementById('reminder-desc').value.trim();
+  const deadline = document.getElementById('reminder-deadline').value;
+  if (!title) { showToast('Title is required', 'error'); return; }
+  const btn = document.getElementById('save-reminder-btn');
+  btn.disabled = true;
+  const payload = { title, description: desc, deadline: deadline || null, author: currentUser.username };
+  let result;
+  if (editingReminderId) {
+    result = await db.from('reminders').update(payload).eq('id', editingReminderId).select().single();
+  } else {
+    result = await db.from('reminders').insert({ ...payload, pinned: false, created_at: new Date().toISOString() }).select().single();
+  }
+  btn.disabled = false;
+  if (result.error) { showToast('Failed to save reminder', 'error'); return; }
+  closeReminderModal();
+  await loadReminders();
+  updateLastActive();
+  showToast(editingReminderId ? 'Reminder updated!' : 'Reminder added!', 'success');
+}
+function editReminder(id) { openReminderModal(id); }
+async function deleteReminder(id) {
+  if (!confirm('Delete this reminder?')) return;
+  const { error } = await db.from('reminders').delete().eq('id', id);
+  if (error) { showToast('Failed to delete', 'error'); return; }
+  allReminders = allReminders.filter(r => r.id !== id);
+  renderReminders();
+  saveToCache();
+  showToast('Reminder deleted', 'success');
+}
+async function toggleReminderPin(id, currentPinned) {
+  const { error } = await db.from('reminders').update({ pinned: !currentPinned }).eq('id', id);
+  if (error) { showToast('Failed to update', 'error'); return; }
+  const r = allReminders.find(x => x.id === id);
+  if (r) r.pinned = !currentPinned;
+  renderReminders();
+}
+
+// ===== UPDATES =====
+async function loadUpdates() {
+  const { data: updates } = await db.from('updates').select('*').order('pinned', {ascending:false}).order('created_at', {ascending:false});
+  if (!updates) return;
+  const { data: replies } = await db.from('update_replies').select('*').order('created_at', {ascending:true});
+  const { data: favorites } = await db.from('favorites').select('*');
+  allUpdates = updates;
+  allFavorites = favorites || [];
+  allReplies = {};
+  (replies || []).forEach(r => { if (!allReplies[r.update_id]) allReplies[r.update_id] = []; allReplies[r.update_id].push(r); });
+  renderUpdates();
+  renderFavorites();
+  saveToCache();
+}
+
+function filterUpdates() {
+  renderUpdates();
+}
+
+function setTimeFilter(filter, btn) {
+  currentTimeFilter = filter;
+  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderUpdates();
+}
+
+function getFilteredUpdates() {
+  const search = (document.getElementById('updates-search')?.value || '').toLowerCase().trim();
+  const cat = document.getElementById('cat-filter')?.value || '';
+  return allUpdates.filter(u => {
+    if (cat && u.category !== cat) return false;
+    if (currentTimeFilter === 'today' && !isToday(u.created_at)) return false;
+    if (currentTimeFilter === '7d' && !withinDays(u.created_at, 7)) return false;
+    if (currentTimeFilter === '30d' && !withinDays(u.created_at, 30)) return false;
+    if (search) {
+      const haystack = (u.content + ' ' + u.author + ' ' + u.category + ' ' + u.mood).toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+}
+
+function renderUpdates() {
+  const list = document.getElementById('updates-list');
+  if (!list) return;
+  const filtered = getFilteredUpdates();
+  const pinned = filtered.filter(u => u.pinned);
+  const rest = filtered.filter(u => !u.pinned);
+  const all = [...pinned, ...rest];
+  if (!all.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📝</div><h3>No updates found</h3><p>Be the first to post an update!</p></div>`;
+    return;
+  }
+  list.innerHTML = all.map(u => renderUpdateCard(u)).join('');
+}
+
+function renderUpdateCard(u) {
+  const isFav = allFavorites.some(f => f.update_id === u.id && f.username === currentUser.username);
+  const seenBy = u.seen_by ? (Array.isArray(u.seen_by) ? u.seen_by : JSON.parse(u.seen_by)) : [];
+  const seenCount = seenBy.length;
+  const replies = allReplies[u.id] || [];
+  const canEdit = u.author === currentUser.username && (new Date() - new Date(u.created_at)) < 600000;
+  const isLocked = u.author === currentUser.username && (new Date() - new Date(u.created_at)) >= 600000;
+  const avatarHtml = getAvatarHTML(u.author, 40);
+  const catBadge = {General:'badge-purple','Daily Life':'badge-blue',Project:'badge-green',Important:'badge-red'}[u.category] || 'badge-purple';
+
+  return `
+    <div class="update-card ${u.pinned?'pinned':''}" id="upd-${u.id}">
+      ${u.pinned ? '<div class="pinned-badge">📌 PINNED</div>' : ''}
+      <div class="update-header">
+        ${avatarHtml}
+        <div class="update-meta">
+          <div class="update-author">${escHtml(u.author)}</div>
+          <div class="update-time">${formatDateTime(u.created_at)}</div>
+          <div class="update-tags">
+            <span class="badge ${catBadge}">${escHtml(u.category)}</span>
+            ${u.mood ? `<span class="badge badge-purple">${escHtml(u.mood)}</span>` : ''}
+          </div>
+        </div>
+      </div>
+      <div class="update-content">${escHtml(u.content)}</div>
+      <div class="update-footer">
+        <button class="action-btn ${isFav?'fav-active':''}" onclick="toggleFavorite('${u.id}', ${isFav})" title="Favorite">
+          ${isFav?'💖':'🤍'} ${isFav?'Unfav':'Favorite'}
+        </button>
+        ${u.author === currentUser.username ? `
+          <button class="action-btn pin-active" onclick="togglePin('${u.id}', ${u.pinned})" title="${u.pinned?'Unpin':'Pin'}">
+            📌 ${u.pinned?'Unpin':'Pin'}
+          </button>
+          ${canEdit ? `<button class="action-btn" onclick="editUpdate('${u.id}')" title="Edit">✏️ Edit</button>` : ''}
+          ${isLocked ? `<span class="locked-badge">🔒 Locked</span>` : ''}
+          <button class="action-btn btn-danger" onclick="deleteUpdate('${u.id}')" style="margin-left:auto" title="Delete">🗑️</button>
+        ` : ''}
+        <div class="seen-info" style="${u.author===currentUser.username?'':'margin-left:auto'}">
+          <button onclick="showSeenBy('${u.id}')" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px;color:var(--text3);font-size:12px">
+            👁 ${seenCount} view${seenCount!==1?'s':''}
+          </button>
+        </div>
+      </div>
+      <!-- Replies -->
+      <div class="replies-section">
+        ${replies.length ? replies.map(r => renderReplyItem(r)).join('') : ''}
+        <div class="reply-form">
+          ${getAvatarHTML(currentUser.username, 28)}
+          <input type="text" id="reply-input-${u.id}" placeholder="Write a reply..." onkeydown="handleReplyKey(event, '${u.id}')" />
+          <button class="btn btn-primary btn-sm" onclick="submitReply('${u.id}')">Send</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderReplyItem(r) {
+  const avatarHtml = getAvatarHTML(r.author, 30);
+  return `
+    <div class="reply-item" id="rep-${r.id}">
+      ${avatarHtml}
+      <div class="reply-content">
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <span class="reply-author">${escHtml(r.author)}</span>
+          <span class="reply-time">${timeAgo(r.created_at)}</span>
+        </div>
+        <div class="reply-text">${escHtml(r.content)}</div>
+      </div>
+    </div>`;
+}
+
+function handleReplyKey(e, updateId) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitReply(updateId); }
+}
+
+async function submitReply(updateId) {
+  const input = document.getElementById(`reply-input-${updateId}`);
+  const content = input?.value.trim();
+  if (!content) return;
+  const { data, error } = await db.from('update_replies').insert({
+    update_id: updateId,
+    author: currentUser.username,
+    content,
+    created_at: new Date().toISOString()
+  }).select().single();
+  if (error) { showToast('Failed to send reply', 'error'); return; }
+  input.value = '';
+  if (!allReplies[updateId]) allReplies[updateId] = [];
+  allReplies[updateId].push(data);
+  updateLastActive();
+  // Re-render just this card
+  const existing = allUpdates.find(u => u.id === updateId);
+  if (existing) {
+    const card = document.getElementById(`upd-${updateId}`);
+    if (card) card.outerHTML = renderUpdateCard(existing);
+  }
+}
+
+// Auto seen
+async function markUpdatesSeen() {
+  for (const u of allUpdates) {
+    if (u.author === currentUser.username) continue;
+    const seenBy = u.seen_by ? (Array.isArray(u.seen_by) ? u.seen_by : JSON.parse(u.seen_by)) : [];
+    const alreadySeen = seenBy.some(s => (typeof s === 'string' ? s : s.username) === currentUser.username);
+    if (!alreadySeen) {
+      const newSeen = [...seenBy, { username: currentUser.username, time: new Date().toISOString() }];
+      await db.from('updates').update({ seen_by: newSeen }).eq('id', u.id);
+      u.seen_by = newSeen;
+    }
+  }
+}
+
+function showSeenBy(updateId) {
+  const u = allUpdates.find(x => x.id === updateId);
+  if (!u) return;
+  const seenBy = u.seen_by ? (Array.isArray(u.seen_by) ? u.seen_by : JSON.parse(u.seen_by)) : [];
+  const modal = document.getElementById('seen-modal');
+  const content = document.getElementById('seen-modal-content');
+  if (!seenBy.length) {
+    content.innerHTML = '<div style="color:var(--text3);text-align:center;padding:16px">No views yet</div>';
+  } else {
+    content.innerHTML = seenBy.map(s => {
+      const name = typeof s === 'string' ? s : s.username;
+      const time = typeof s === 'object' ? s.time : null;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        ${getAvatarHTML(name, 32)}
+        <div><div style="font-weight:600;font-size:13px">${escHtml(name)}</div>${time?`<div style="font-size:11px;color:var(--text3)">${formatDateTime(time)}</div>`:''}</div>
+      </div>`;
+    }).join('');
+  }
+  modal.classList.add('open');
+}
+
+// Create/Edit Update
+function openCreateUpdate() {
+  editingUpdateId = null;
+  document.getElementById('update-modal-title').textContent = 'New Update';
+  document.getElementById('update-content').value = '';
+  document.getElementById('update-category').value = 'General';
+  selectedMood = '😊 Good';
+  document.querySelectorAll('.mood-btn').forEach(b => b.classList.toggle('selected', b.dataset.mood === selectedMood));
+  document.getElementById('save-update-btn').textContent = '📝 Post';
+  document.getElementById('update-modal').classList.add('open');
+}
+function closeUpdateModal() { document.getElementById('update-modal').classList.remove('open'); editingUpdateId = null; }
+function selectMood(btn) {
+  selectedMood = btn.dataset.mood;
+  document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+async function saveUpdate() {
+  const content = document.getElementById('update-content').value.trim();
+  const category = document.getElementById('update-category').value;
+  if (!content) { showToast('Content cannot be empty', 'error'); return; }
+  const btn = document.getElementById('save-update-btn');
+  btn.disabled = true;
+  const payload = { content, category, mood: selectedMood, author: currentUser.username };
+  let result;
+  if (editingUpdateId) {
+    result = await db.from('updates').update(payload).eq('id', editingUpdateId).select().single();
+  } else {
+    result = await db.from('updates').insert({ ...payload, pinned: false, seen_by: [], created_at: new Date().toISOString() }).select().single();
+  }
+  btn.disabled = false;
+  if (result.error) { showToast('Failed to save update', 'error'); return; }
+  closeUpdateModal();
+  await loadUpdates();
+  updateLastActive();
+  showToast(editingUpdateId ? 'Update edited!' : 'Update posted!', 'success');
+}
+function editUpdate(id) {
+  const u = allUpdates.find(x => x.id === id);
+  if (!u) return;
+  editingUpdateId = id;
+  document.getElementById('update-modal-title').textContent = 'Edit Update';
+  document.getElementById('update-content').value = u.content;
+  document.getElementById('update-category').value = u.category;
+  selectedMood = u.mood || '😊 Good';
+  document.querySelectorAll('.mood-btn').forEach(b => b.classList.toggle('selected', b.dataset.mood === selectedMood));
+  document.getElementById('save-update-btn').textContent = '💾 Save';
+  document.getElementById('update-modal').classList.add('open');
+}
+async function deleteUpdate(id) {
+  if (!confirm('Delete this update?')) return;
+  await db.from('update_replies').delete().eq('update_id', id);
+  await db.from('favorites').delete().eq('update_id', id);
+  const { error } = await db.from('updates').delete().eq('id', id);
+  if (error) { showToast('Failed to delete', 'error'); return; }
+  allUpdates = allUpdates.filter(u => u.id !== id);
+  delete allReplies[id];
+  allFavorites = allFavorites.filter(f => f.update_id !== id);
+  renderUpdates();
+  renderFavorites();
+  saveToCache();
+  showToast('Update deleted', 'success');
+}
+async function togglePin(id, currentPinned) {
+  const { error } = await db.from('updates').update({ pinned: !currentPinned }).eq('id', id);
+  if (error) { showToast('Failed to update', 'error'); return; }
+  const u = allUpdates.find(x => x.id === id);
+  if (u) u.pinned = !currentPinned;
+  renderUpdates();
+  showToast(!currentPinned ? 'Update pinned!' : 'Update unpinned', 'success');
+}
+
+// ===== FAVORITES =====
+async function loadFavorites() {
+  const { data } = await db.from('favorites').select('*');
+  allFavorites = data || [];
+}
+async function toggleFavorite(updateId, isFav) {
+  if (isFav) {
+    await db.from('favorites').delete().eq('update_id', updateId).eq('username', currentUser.username);
+    allFavorites = allFavorites.filter(f => !(f.update_id === updateId && f.username === currentUser.username));
+  } else {
+    const { data } = await db.from('favorites').insert({ update_id: updateId, username: currentUser.username, created_at: new Date().toISOString() }).select().single();
+    if (data) allFavorites.push(data);
+  }
+  renderUpdates();
+  renderFavorites();
+}
+function renderFavorites() {
+  const list = document.getElementById('favorites-list');
+  if (!list) return;
+  const favUpdates = allUpdates.filter(u => allFavorites.some(f => f.update_id === u.id && f.username === currentUser.username));
+  if (!favUpdates.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">⭐</div><h3>No favorites yet</h3><p>Heart an update to save it here!</p></div>`;
+    return;
+  }
+  list.innerHTML = favUpdates.map(u => renderUpdateCard(u)).join('');
+}
+
+// ===== CHAT =====
+async function loadChatMessages() {
+  const { data } = await db.from('chat_messages').select('*').order('created_at', {ascending:true}).limit(200);
+  chatMessages = data || [];
+  renderChatMessages();
+  saveToCache();
+  scrollChatToBottom();
+}
+function renderChatMessages(msgs=null) {
+  const container = document.getElementById('chat-messages');
+  if (!container) return;
+  const messages = msgs || chatMessages;
+  if (!messages.length) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div><h3>No messages yet</h3><p>Start the conversation!</p></div>`;
+    return;
+  }
+  let html = '';
+  let lastDate = null;
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i];
+    const msgDate = new Date(m.created_at).toDateString();
+    if (msgDate !== lastDate) {
+      html += `<div class="chat-day-divider">${isToday(m.created_at)?'Today':formatDate(m.created_at)}</div>`;
+      lastDate = msgDate;
+    }
+    const avatarHtml = getAvatarHTML(m.author, 34);
+    html += `
+      <div class="chat-msg">
+        ${avatarHtml}
+        <div class="chat-msg-content">
+          <div class="chat-msg-header">
+            <span class="chat-msg-author">${escHtml(m.author)}</span>
+            <span class="chat-msg-time">${formatTime(m.created_at)}</span>
+          </div>
+          <div class="chat-msg-text">${escHtml(m.message)}</div>
+        </div>
+      </div>`;
+  }
+  container.innerHTML = html;
+}
+function filterChat() {
+  const q = (document.getElementById('chat-search')?.value || '').toLowerCase().trim();
+  if (!q) { renderChatMessages(); scrollChatToBottom(); return; }
+  const filtered = chatMessages.filter(m => m.message.toLowerCase().includes(q) || m.author.toLowerCase().includes(q));
+  renderChatMessages(filtered);
+}
+function scrollChatToBottom() {
+  const container = document.getElementById('chat-messages');
+  if (container) container.scrollTop = container.scrollHeight;
+}
+function markChatSeen() {} // Chat doesn't have seen tracking
+function handleChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+function autoResizeChatInput(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const msg = input?.value.trim();
+  if (!msg) return;
+  input.value = '';
+  input.style.height = 'auto';
+  const { data, error } = await db.from('chat_messages').insert({
+    author: currentUser.username,
+    message: msg,
+    created_at: new Date().toISOString()
+  }).select().single();
+  if (error) { showToast('Failed to send message', 'error'); return; }
+  chatMessages.push(data);
+  renderChatMessages();
+  scrollChatToBottom();
+  updateLastActive();
+  saveToCache();
+}
+
+// Emoji picker
+const EMOJIS = ['😊','😂','❤️','🙏','😍','😭','👍','🎉','🔥','💜','✨','😎','🤔','😴','😔','🥰','😅','🤣','💕','🌸','🌟','💫','🎶','📔','📝','💬','⭐','🎊','🍀','🌈'];
+function setupEmojiPicker() {
+  const palette = document.getElementById('emoji-palette');
+  palette.innerHTML = EMOJIS.map(e => `<button class="emoji-btn" onclick="insertEmoji('${e}')">${e}</button>`).join('');
+}
+function toggleEmojiPicker() {
+  const p = document.getElementById('emoji-palette');
+  p.classList.toggle('open');
+}
+function insertEmoji(emoji) {
+  const input = document.getElementById('chat-input');
+  if (!input) return;
+  const pos = input.selectionStart;
+  const val = input.value;
+  input.value = val.slice(0, pos) + emoji + val.slice(pos);
+  input.focus();
+  input.setSelectionRange(pos + emoji.length, pos + emoji.length);
+  document.getElementById('emoji-palette').classList.remove('open');
+}
+document.addEventListener('click', e => {
+  const palette = document.getElementById('emoji-palette');
+  if (palette && palette.classList.contains('open') && !e.target.closest('.emoji-picker-btn') && !e.target.closest('.emoji-palette')) {
+    palette.classList.remove('open');
+  }
+});
+
+// ===== ACTIVITY FEED =====
+async function buildActivityFeed() {
+  const feed = document.getElementById('activity-feed');
+  if (!feed) return;
+  const activities = [];
+  // Updates
+  allUpdates.slice(0, 5).forEach(u => {
+    activities.push({ type:'update', author:u.author, text:`posted an update`, time:u.created_at, icon:'📝' });
+  });
+  // Replies
+  Object.values(allReplies).flat().slice(0, 5).forEach(r => {
+    activities.push({ type:'reply', author:r.author, text:`replied to an update`, time:r.created_at, icon:'💬' });
+  });
+  // Chat (last 3)
+  chatMessages.slice(-3).forEach(m => {
+    activities.push({ type:'chat', author:m.author, text:`sent a chat message`, time:m.created_at, icon:'✉️' });
+  });
+  // Note
+  if (sharedNote) activities.push({ type:'note', author:sharedNote.edited_by, text:`edited the shared note`, time:sharedNote.updated_at, icon:'📋' });
+  // Reminders
+  allReminders.slice(0,3).forEach(r => {
+    activities.push({ type:'reminder', author:r.author, text:`created a reminder`, time:r.created_at, icon:'⏰' });
+  });
+  activities.sort((a,b) => new Date(b.time)-new Date(a.time));
+  const top = activities.slice(0,10);
+  if (!top.length) {
+    feed.innerHTML = `<div class="empty-state"><div class="empty-icon">🔔</div><h3>No activity yet</h3><p>Start using the diary!</p></div>`;
+    return;
+  }
+  feed.innerHTML = top.map(a => `
+    <div class="activity-item">
+      <div class="activity-icon">${a.icon}</div>
+      <div class="activity-text"><strong>${escHtml(a.author||'Someone')}</strong> ${escHtml(a.text)}</div>
+      <div class="activity-time">${timeAgo(a.time)}</div>
+    </div>`).join('');
+}
+
+// ===== GLOBAL SEARCH =====
+// (accessible via header search input)
+
+// ===== PROFILE PICTURE UPLOAD =====
+async function handleAvatarUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!validTypes.includes(file.type)) { showToast('Only JPG, PNG, WEBP allowed', 'error'); return; }
+  if (file.size > 2 * 1024 * 1024) { showToast('File too large (max 2MB)', 'error'); return; }
+  const statusEl = document.getElementById('upload-status');
+  if (statusEl) statusEl.textContent = 'Uploading...';
+  const ext = file.type.split('/')[1].replace('jpeg','jpg');
+  const filename = `${currentUser.username}.${ext}`;
+  const { data, error } = await db.storage.from('profile-pictures').upload(filename, file, { upsert: true, contentType: file.type });
+  if (error) { showToast('Upload failed: ' + error.message, 'error'); if(statusEl) statusEl.textContent = ''; return; }
+  const { data: urlData } = db.storage.from('profile-pictures').getPublicUrl(filename);
+  if (urlData?.publicUrl) {
+    profilePictures[currentUser.username] = urlData.publicUrl + '?t=' + Date.now();
+    updateAllAvatars();
+    renderUpdates();
+    renderChatMessages();
+    renderFavorites();
+    showToast('Profile picture updated!', 'success');
+    if(statusEl) statusEl.textContent = 'Uploaded successfully!';
+  }
+  event.target.value = '';
+}
+
+// ===== EXPORT DATA =====
+async function exportData() {
+  showToast('Preparing export...', 'info');
+  const { data: updates } = await db.from('updates').select('*');
+  const { data: replies } = await db.from('update_replies').select('*');
+  const { data: favorites } = await db.from('favorites').select('*');
+  const { data: reminders } = await db.from('reminders').select('*');
+  const { data: chat } = await db.from('chat_messages').select('*');
+  const exportObj = {
+    exported_at: new Date().toISOString(),
+    exported_by: currentUser.username,
+    updates: updates || [],
+    replies: replies || [],
+    favorites: favorites || [],
+    reminders: reminders || [],
+    chat_messages: chat || []
+  };
+  const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `digital-diary-export-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Data exported!', 'success');
+}
+
+// ===== LOGOUT =====
+function logout() {
+  if (!confirm('Are you sure you want to logout?')) return;
+  sessionStorage.removeItem('dd_user');
+  currentUser = null;
+  realtimeChannels.forEach(ch => db.removeChannel(ch));
+  realtimeChannels = [];
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('login-username').value = '';
+  document.getElementById('login-password').value = '';
+  showToast('Logged out', 'info');
+}
+
+// ===== REALTIME =====
+function setupRealtime() {
+  // Updates channel
+  const updatesChannel = db.channel('updates-channel')
+    .on('postgres_changes', { event:'*', schema:'public', table:'updates' }, async payload => {
+      await loadUpdates();
+      buildActivityFeed();
+    })
+    .on('postgres_changes', { event:'*', schema:'public', table:'update_replies' }, async payload => {
+      const { data: replies } = await db.from('update_replies').select('*').order('created_at', {ascending:true});
+      allReplies = {};
+      (replies||[]).forEach(r => { if(!allReplies[r.update_id]) allReplies[r.update_id]=[]; allReplies[r.update_id].push(r); });
+      renderUpdates();
+      renderFavorites();
+      buildActivityFeed();
+    })
+    .on('postgres_changes', { event:'*', schema:'public', table:'favorites' }, async () => {
+      await loadFavorites();
+      renderUpdates();
+      renderFavorites();
+    })
+    .subscribe(status => updateConnectionStatus(status));
+
+  // Chat channel
+  const chatChannel = db.channel('chat-channel')
+    .on('postgres_changes', { event:'INSERT', schema:'public', table:'chat_messages' }, payload => {
+      const msg = payload.new;
+      if (!chatMessages.find(m => m.id === msg.id)) {
+        chatMessages.push(msg);
+        renderChatMessages();
+        scrollChatToBottom();
+        saveToCache();
+        buildActivityFeed();
+      }
+    })
+    .subscribe();
+
+  // Note channel
+  const noteChannel = db.channel('note-channel')
+    .on('postgres_changes', { event:'*', schema:'public', table:'shared_note' }, payload => {
+      sharedNote = payload.new;
+      renderSharedNote(sharedNote);
+      saveToCache();
+      buildActivityFeed();
+    })
+    .subscribe();
+
+  // Reminders channel
+  const remindersChannel = db.channel('reminders-channel')
+    .on('postgres_changes', { event:'*', schema:'public', table:'reminders' }, async () => {
+      await loadReminders();
+      buildActivityFeed();
+    })
+    .subscribe();
+
+  realtimeChannels = [updatesChannel, chatChannel, noteChannel, remindersChannel];
+}
+
+function updateConnectionStatus(status) {
+  const dot = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  const dot2 = document.getElementById('status-dot2');
+  const text2 = document.getElementById('status-text2');
+  if (status === 'SUBSCRIBED') {
+    if(dot) { dot.className='status-indicator status-synced'; }
+    if(text) text.textContent = 'Synced';
+    if(dot2) { dot2.className='status-indicator status-synced'; }
+    if(text2) text2.textContent = '🟢 Synced';
+  } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+    if(dot) { dot.className='status-indicator status-offline'; }
+    if(text) text.textContent = 'Offline';
+    if(dot2) { dot2.className='status-indicator status-offline'; }
+    if(text2) text2.textContent = '🔴 Offline';
+  } else {
+    if(dot) { dot.className='status-indicator status-reconnecting'; }
+    if(text) text.textContent = 'Reconnecting';
+    if(dot2) { dot2.className='status-indicator status-reconnecting'; }
+    if(text2) text2.textContent = '🟡 Reconnecting';
+  }
+}
+
+// ===== REFRESH ALL =====
+async function refreshAll() {
+  showToast('Refreshing...', 'info', 1500);
+  await Promise.all([
+    loadSharedNote(),
+    loadReminders(),
+    loadUpdates(),
+    loadChatMessages(),
+    loadFavorites(),
+    loadLastActive(),
+  ]);
+  buildActivityFeed();
+  updateLastSynced();
+  showToast('All data refreshed!', 'success');
+}
+function updateLastSynced() {
+  lastSyncTime = new Date();
+  const el = document.getElementById('last-synced-time');
+  if (el) el.textContent = 'Last synced: ' + lastSyncTime.toLocaleTimeString();
+}
+
+// ===== MODAL HELPERS =====
+function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+
+// Close modals on overlay click
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('modal-overlay')) {
+    e.target.classList.remove('open');
+  }
+});
+
+// ===== KEYBOARD SHORTCUTS =====
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+    closeMobileSidebar();
+  }
+});
+
+// ===== INIT EMOJI PICKER =====
+setupEmojiPicker();
+
+// ===== AUTO-DETECT THEME =====
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (currentTheme === 'auto') applyTheme('auto');
+});
+
+// ===== UPDATE THEME BTN ACTIVE STATE =====
+document.querySelectorAll('.theme-btn').forEach(btn => {
+  btn.classList.toggle('active', btn.textContent.toLowerCase().includes(currentTheme));
+});
+
+console.log('📔 Digital Diary loaded successfully!');
+</script>
+</body>
+</html>
